@@ -3,7 +3,9 @@ package workflow
 import (
 	"context"
 	"errors"
+	"log"
 	"sync"
+	"sync/atomic"
 )
 
 var empty struct{}
@@ -70,7 +72,7 @@ func NewGraph(
 	}
 
 	g := Graph{
-		tasks: taskMap,
+		tasks:            taskMap,
 		taskToDependants: taskToDependants,
 	}
 
@@ -125,41 +127,57 @@ func (g Graph) isWellFormed() error {
 // Tasks are run concurrently when it is possible to do so.
 func (g Graph) Run(ctx context.Context) error {
 
-	lockMap := make(map[string]*sync.RWMutex, len(g.tasks))
+	taskToListeners := make(map[string][]func(), len(g.tasks))
+	readyTasks := make(chan func(), len(g.tasks))
 	var wg sync.WaitGroup
-	wg.Add(len(g.tasks))
 	var retErr error
+
 	gCtx, cancel := context.WithCancel(ctx)
 
-	tasks := make([]func(), 0, len(g.tasks))
+	for name, t := range g.tasks {
+		// Hold onto a handle; task would otherwise change on each iteration
+		task := t
+		numDeps := int32(len(g.tasks[name].deps))
 
-	for name, task := range g.tasks {
-
-		lock := sync.RWMutex{}
-		lock.Lock()
-		lockMap[name] = &lock
-
-		tasks = append(tasks, func() {
+		run := func(task Task) {
 			defer wg.Done()
-			defer lock.Unlock()
-
-			for depName, _ := range g.tasks[name].deps {
-				lockMap[depName].RLock()
-				lockMap[depName].RUnlock()
-			}
 
 			if err := task.fn(gCtx); err != nil {
 				retErr = err
 				cancel()
 			}
-		})
+
+			for _, listener := range taskToListeners[task.name] {
+				listener()
+			}
+		}
+
+		if numDeps == 0 {
+			log.Print(numDeps)
+
+			wg.Add(1)
+			readyTasks <- func() { run(task) }
+			continue
+		}
+
+		for depName, _ := range g.tasks[name].deps {
+			taskToListeners[depName] = append(taskToListeners[depName], func() {
+				if atomic.AddInt32(&numDeps, -1) == int32(0) {
+					wg.Add(1)
+					readyTasks <- func() { run(task) }
+				}
+			})
+		}
 	}
 
-	for _, task := range tasks {
+	go func() {
+		wg.Wait()
+		close(readyTasks)
+	}()
+
+	for task := range readyTasks {
 		go task()
 	}
-
-	wg.Wait()
 
 	cancel()
 	return retErr

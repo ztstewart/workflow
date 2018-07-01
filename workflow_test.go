@@ -24,18 +24,18 @@ func TestWorkflowSimpleCase(t *testing.T) {
 	taskOneRan := false
 	taskTwoRan := false
 	taskGraph, err := NewGraph([]Task{
-        NewTask("taskName", func(ctx context.Context) error {
+		NewTask("taskName", func(ctx context.Context) error {
 			// Do some useful work here...
 			taskOneRan = true
-            return nil
-        }, []string{"someOtherTask"}),
-        NewTask("someOtherTask", func(ctx context.Context) error {
+			return nil
+		}, []string{"someOtherTask"}),
+		NewTask("someOtherTask", func(ctx context.Context) error {
 			// Do some useful work here...
 			taskTwoRan = true
-            return nil
-        }, nil),
+			return nil
+		}, nil),
 	})
-	
+
 	if err != nil {
 		t.Fatal("failed to initialize the graph")
 	}
