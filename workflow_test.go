@@ -29,12 +29,12 @@ func TestWorkflowSimpleCase(t *testing.T) {
 			// Do some useful work here...
 			taskOneRan = true
 			return nil
-		}, []string{"someOtherTask"}),
+		}, "someOtherTask"),
 		NewTask("someOtherTask", func(ctx context.Context) error {
 			// Do some useful work here...
 			taskTwoRan = true
 			return nil
-		}, nil),
+		}),
 	})
 
 	if err != nil {
@@ -67,12 +67,12 @@ func TestWorkflowReturnsError(t *testing.T) {
 			// Do some useful work here...
 			taskOneRan = true
 			return nil
-		}, []string{"someOtherTask"}),
+		}, "someOtherTask"),
 		NewTask("someOtherTask", func(ctx context.Context) error {
 			// Do some useful work here...
 			taskTwoRan = true
 			return retErr
-		}, nil),
+		}),
 	})
 
 	if err != nil {
