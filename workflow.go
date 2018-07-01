@@ -37,9 +37,6 @@ func NewTask(name string, fn TaskFn, deps ...string) Task {
 // A Graph is a representation of the dependencies of a workflow.
 // It is capable of executing the dependencies of the workflow in
 // a topological order.
-//
-// An error will be returned in the event that the graph is not well-formed,
-// such as when a dependency is not satisfied or a cycle is detected.
 type Graph struct {
 	tasks map[string]Task
 	// Map of task name to set of tasks that depend on it.
@@ -47,10 +44,13 @@ type Graph struct {
 	taskToDependants map[string]map[string]struct{}
 }
 
+// NewGraph constructs a new task execution graph and validates the tasks.
+// An error will be returned in the event that the dependency graph is not
+// well-formed, such as when a dependency is not satisfied or a cycle is
+// detected.
 func NewGraph(
 	tasks []Task,
 ) (Graph, error) {
-
 	taskMap := make(map[string]Task, len(tasks))
 	taskToDependants := make(map[string]map[string]struct{}, len(tasks))
 
