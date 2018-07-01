@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -48,6 +49,44 @@ func TestWorkflowSimpleCase(t *testing.T) {
 
 	if !taskOneRan {
 		t.Fatal("failed to run taskOne")
+	}
+
+	if !taskTwoRan {
+		t.Fatal("failed to run taskTwo")
+	}
+
+}
+
+func TestWorkflowReturnsError(t *testing.T) {
+
+	retErr := errors.New("bad error")
+	taskOneRan := false
+	taskTwoRan := false
+	taskGraph, err := NewGraph([]Task{
+		NewTask("taskName", func(ctx context.Context) error {
+			// Do some useful work here...
+			taskOneRan = true
+			return nil
+		}, []string{"someOtherTask"}),
+		NewTask("someOtherTask", func(ctx context.Context) error {
+			// Do some useful work here...
+			taskTwoRan = true
+			return retErr
+		}, nil),
+	})
+
+	if err != nil {
+		t.Fatal("failed to initialize the graph")
+	}
+
+	err = taskGraph.Run(context.Background())
+
+	if err != retErr {
+		t.Fatal("failed to return an error")
+	}
+
+	if taskOneRan {
+		t.Fatal("should not have started taskOne")
 	}
 
 	if !taskTwoRan {

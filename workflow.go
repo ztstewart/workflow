@@ -141,9 +141,16 @@ func (g Graph) Run(ctx context.Context) error {
 		run := func(task Task) {
 			defer wg.Done()
 
+			// Do not execute if we have encountered an error
+			if retErr != nil {
+				return
+			}
+
 			if err := task.fn(gCtx); err != nil {
 				retErr = err
 				cancel()
+				// Do not queue up additional tasks after encountering an error
+				return
 			}
 
 			for _, listener := range taskToListeners[task.name] {
