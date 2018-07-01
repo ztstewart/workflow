@@ -3,7 +3,6 @@ package workflow
 import (
 	"context"
 	"errors"
-	"log"
 	"sync"
 	"sync/atomic"
 )
@@ -134,10 +133,10 @@ func (g Graph) Run(ctx context.Context) error {
 
 	gCtx, cancel := context.WithCancel(ctx)
 
-	for name, t := range g.tasks {
+	for _, t := range g.tasks {
 		// Hold onto a handle; task would otherwise change on each iteration
 		task := t
-		numDeps := int32(len(g.tasks[name].deps))
+		numDeps := int32(len(task.deps))
 
 		run := func(task Task) {
 			defer wg.Done()
@@ -153,14 +152,12 @@ func (g Graph) Run(ctx context.Context) error {
 		}
 
 		if numDeps == 0 {
-			log.Print(numDeps)
-
 			wg.Add(1)
 			readyTasks <- func() { run(task) }
 			continue
 		}
 
-		for depName, _ := range g.tasks[name].deps {
+		for depName, _ := range task.deps {
 			taskToListeners[depName] = append(taskToListeners[depName], func() {
 				if atomic.AddInt32(&numDeps, -1) == int32(0) {
 					wg.Add(1)
