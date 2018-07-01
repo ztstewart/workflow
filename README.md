@@ -22,11 +22,11 @@ func doSomething(ctx context.Context) {
         NewTask("taskName", func(ctx context.Context) error {
             // Do some useful work here...
             return nil
-        }, []string{"someOtherTask"}),
+        }, "someOtherTask"),
         NewTask("someOtherTask", func(ctx context.Context) error {
             // Do some useful work here...
             return nil
-        }, nil),
+        })
     })
 
     // Check for an error in case we forgot to add "someOtherTask" as a dependency to "taskName"
