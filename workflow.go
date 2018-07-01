@@ -48,12 +48,15 @@ type Graph struct {
 }
 
 func NewGraph(
-	tasks map[string]Task,
+	tasks []Task,
 ) (Graph, error) {
 
+	taskMap := make(map[string]Task, len(tasks))
 	taskToDependants := make(map[string]map[string]struct{}, len(tasks))
 
-	for name, task := range tasks {
+	for _, task := range tasks {
+		name := task.name
+		taskMap[name] = task
 		for depName, _ := range task.deps {
 			depSet, ok := taskToDependants[depName]
 
@@ -67,7 +70,8 @@ func NewGraph(
 	}
 
 	g := Graph{
-		tasks: tasks,
+		tasks: taskMap,
+		taskToDependants: taskToDependants,
 	}
 
 	err := g.isWellFormed()
