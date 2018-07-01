@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
+
+	"github.com/ztstewart/workflow/internal/atomic"
 )
 
 var empty struct{}
@@ -23,7 +24,6 @@ type Task struct {
 
 // NewTask constructs a Task with a name and set of dependencies.
 func NewTask(name string, fn TaskFn, deps ...string) Task {
-
 	depSet := make(map[string]struct{}, len(deps))
 
 	for _, dep := range deps {
@@ -44,7 +44,9 @@ func NewTask(name string, fn TaskFn, deps ...string) Task {
 // An error will be returned in the event that the graph is not well-formed,
 // such as when a dependency is not satisfied or a cycle is detected.
 type Graph struct {
-	tasks            map[string]Task
+	tasks map[string]Task
+	// Map of task name to set of tasks that depend on it.
+	// Map<String, Set<String>> in Java.
 	taskToDependants map[string]map[string]struct{}
 }
 
@@ -80,35 +82,46 @@ func NewGraph(
 	return g, err
 }
 
+// isWellFormed checks to ensure that there are no cycles or missing
+// dependencies.
 func (g Graph) isWellFormed() error {
-	noDeps := make([]string, 0, len(g.tasks))
+	tasksWithNoDeps := make([]string, 0, len(g.tasks))
 	taskToNumDeps := make(map[string]int32, len(g.tasks))
 
+	// Count the number of dependencies and mark as ready to execute if no
+	// deps are present.
 	for name, task := range g.tasks {
 		numDeps := len(task.deps)
 
 		if numDeps == 0 {
-			noDeps = append(noDeps, name)
+			tasksWithNoDeps = append(tasksWithNoDeps, name)
 		}
 
 		taskToNumDeps[name] = int32(numDeps)
 	}
 
+	// For every task with no dependencies, increment the number of jobs that
+	// we have visited. Then repeat for any child tasks that are now runnable.
+	// See https://en.wikipedia.org/wiki/Topological_sorting for more details.
 	visitedJobs := 0
 
-	for i := 0; i < len(noDeps); i++ {
-		name := noDeps[i]
+	for i := 0; i < len(tasksWithNoDeps); i++ {
+		name := tasksWithNoDeps[i]
 		visitedJobs++
 
 		for dep, _ := range g.taskToDependants[name] {
 			taskToNumDeps[dep]--
 
+			// If a job has no dependencies unfulfilled, we can visit it.
 			if taskToNumDeps[dep] == 0 {
-				noDeps = append(noDeps, dep)
+				tasksWithNoDeps = append(tasksWithNoDeps, dep)
 			}
 		}
 	}
 
+	// If we have failed to visit all jobs, or we have visited some more than
+	// once somehow, we either are missing a dependency or we have a cycle.
+	// Either way, we can't execute the graph.
 	if visitedJobs != len(g.tasks) {
 		return errors.New("dependency graph is unsolvable; check for cycles or missing dependencies")
 	}
@@ -126,63 +139,97 @@ func (g Graph) isWellFormed() error {
 // Tasks are run concurrently when it is possible to do so.
 func (g Graph) Run(ctx context.Context) error {
 
-	taskToListeners := make(map[string][]func(), len(g.tasks))
-	readyTasks := make(chan func(), len(g.tasks))
-	var wg sync.WaitGroup
-	var retErr error
+	ec := newExecutionCtx(ctx, g)
+	return ec.run()
+}
 
-	gCtx, cancel := context.WithCancel(ctx)
+// executionCtx holds everything needed to execute a Graph.
+// The Graph type can be thought of as stateless, whereas the
+// executionCtx type can be thought of as mutable. This allows the Graph
+// to be executed multiple times without needing any external cleanup, so long
+// as the caller's tasks are idempotent.
+type executionCtx struct {
+	wg            sync.WaitGroup
+	g             Graph
+	taskToNumdeps map[string]*atomic.Int32
+	err           error
+	ctx           context.Context
+	cancel        context.CancelFunc
+	readyTasks    chan func()
+	errCounter    *atomic.Int32 // There are no atomic errors, sadly
+}
 
-	for _, t := range g.tasks {
-		// Hold onto a handle; task would otherwise change on each iteration
-		task := t
-		numDeps := int32(len(task.deps))
+func newExecutionCtx(ctx context.Context, g Graph) *executionCtx {
+	iCtx, cancel := context.WithCancel(ctx)
 
-		run := func(task Task) {
-			defer wg.Done()
+	return &executionCtx{
+		taskToNumdeps: make(map[string]*atomic.Int32, len(g.tasks)),
+		readyTasks:    make(chan func(), len(g.tasks)),
+		g:             g,
+		ctx:           iCtx,
+		cancel:        cancel,
+		errCounter:    atomic.NewInt32(0),
+	}
+}
 
-			// Do not execute if we have encountered an error
-			if retErr != nil {
-				return
-			}
+func (ec *executionCtx) run() error {
+	for _, t := range ec.g.tasks {
+		ec.taskToNumdeps[t.name] = atomic.NewInt32(int32(len(t.deps)))
 
-			if err := task.fn(gCtx); err != nil {
-				retErr = err
-				cancel()
-				// Do not queue up additional tasks after encountering an error
-				return
-			}
-
-			for _, listener := range taskToListeners[task.name] {
-				listener()
-			}
-		}
-
-		if numDeps == 0 {
-			wg.Add(1)
-			readyTasks <- func() { run(task) }
-			continue
-		}
-
-		for depName, _ := range task.deps {
-			taskToListeners[depName] = append(taskToListeners[depName], func() {
-				if atomic.AddInt32(&numDeps, -1) == int32(0) {
-					wg.Add(1)
-					readyTasks <- func() { run(task) }
-				}
-			})
+		// When a task has no dependencies, it is free to be run.
+		if ec.taskToNumdeps[t.name].Load() == 0 {
+			ec.enqueueTask(t)
 		}
 	}
 
 	go func() {
-		wg.Wait()
-		close(readyTasks)
+		ec.wg.Wait()
+		close(ec.readyTasks)
 	}()
 
-	for task := range readyTasks {
+	for task := range ec.readyTasks {
 		go task()
 	}
 
-	cancel()
-	return retErr
+	ec.cancel()
+
+	return ec.err
+}
+
+func (ec *executionCtx) encounteredErr() bool {
+	return ec.errCounter.Load() != 0
+}
+
+func (ec *executionCtx) markFailure(err error) {
+	if !ec.encounteredErr() {
+		ec.err = err
+	}
+
+	ec.cancel()
+}
+
+func (ec *executionCtx) enqueueTask(t Task) {
+	ec.wg.Add(1)
+	ec.readyTasks <- func() { ec.runTask(t) }
+}
+
+func (ec *executionCtx) runTask(t Task) {
+	defer ec.wg.Done()
+
+	// Do not execute if we have encountered an error.
+	if ec.encounteredErr() {
+		return
+	}
+
+	if err := t.fn(ec.ctx); err != nil {
+		ec.markFailure(err)
+		// Do not queue up additional tasks after encountering an error
+		return
+	}
+
+	for dep, _ := range ec.g.taskToDependants[t.name] {
+		if ec.taskToNumdeps[dep].Add(-1) == int32(0) {
+			ec.enqueueTask(ec.g.tasks[dep])
+		}
+	}
 }
