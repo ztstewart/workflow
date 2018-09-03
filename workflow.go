@@ -36,6 +36,8 @@ func NewTask(name string, deps []string, fn TaskFn) Task {
 // A Graph is a representation of the dependencies of a workflow.
 // It is capable of executing the dependencies of the workflow in
 // a topological order.
+//
+// A Graph is safe to reuse for multiple executions.
 type Graph struct {
 	tasks map[string]Task
 	// Map of task name to set of tasks that depend on it.
