@@ -20,7 +20,7 @@ type executionCtx struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	errCounter    *atomic.Int32 // There are no atomic errors, sadly
-	results       *sync.Map
+	results       Results
 }
 
 func newExecutionCtx(ctx context.Context, g Graph) *executionCtx {
@@ -32,7 +32,7 @@ func newExecutionCtx(ctx context.Context, g Graph) *executionCtx {
 		ctx:           iCtx,
 		cancel:        cancel,
 		errCounter:    atomic.NewInt32(0),
-		results:       &sync.Map{},
+		results:       Results{resMap: &sync.Map{}},
 	}
 }
 
@@ -87,7 +87,7 @@ func (ec *executionCtx) runTask(t Task) {
 		return
 	}
 
-	ec.results.Store(t.name, res)
+	ec.results.store(t.name, res)
 
 	for dep := range ec.g.taskToDependants[t.name] {
 		if ec.taskToNumdeps[dep].Add(-1) == int32(0) {

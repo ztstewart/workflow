@@ -3,12 +3,11 @@ package workflow
 import (
 	"context"
 	"errors"
-	"sync"
 	"testing"
 )
 
 func TestWorkflowNoJobs(t *testing.T) {
-	graph, err := NewGraph(nil)
+	graph, err := NewGraph()
 
 	if err != nil {
 		t.Fatal("failed to initialize the graph")
@@ -26,16 +25,16 @@ func TestWorkflowSimpleCase(t *testing.T) {
 	taskTwoRan := false
 	taskThreeRan := false
 	taskOneRetVal := "someReturnValue"
-	taskGraph, err := NewGraph([]Task{
-		NewTask("taskOne", []string{"taskTwo"}, func(ctx context.Context, res *sync.Map) (interface{}, error) {
+	taskGraph, err := NewGraph(
+		NewTask("taskOne", []string{"taskTwo"}, func(ctx context.Context, res Results) (interface{}, error) {
 			taskOneRan = true
 			return taskOneRetVal, nil
 		}),
-		NewTask("taskTwo", nil, func(ctx context.Context, res *sync.Map) (interface{}, error) {
+		NewTask("taskTwo", nil, func(ctx context.Context, res Results) (interface{}, error) {
 			taskTwoRan = true
 			return nil, nil
 		}),
-		NewTask("taskThree", []string{"taskOne"}, func(ctx context.Context, res *sync.Map) (interface{}, error) {
+		NewTask("taskThree", []string{"taskOne"}, func(ctx context.Context, res Results) (interface{}, error) {
 			taskThreeRan = true
 
 			taskOneRes, ok := res.Load("taskOne")
@@ -54,7 +53,7 @@ func TestWorkflowSimpleCase(t *testing.T) {
 
 			return nil, nil
 		}),
-	})
+	)
 
 	if err != nil {
 		t.Fatal("failed to initialize the graph")
@@ -82,16 +81,16 @@ func TestWorkflowReturnsError(t *testing.T) {
 	retErr := errors.New("bad error")
 	taskOneRan := false
 	taskTwoRan := false
-	taskGraph, err := NewGraph([]Task{
-		NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context, res *sync.Map) (interface{}, error) {
+	taskGraph, err := NewGraph(
+		NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context, res Results) (interface{}, error) {
 			taskOneRan = true
 			return nil, nil
 		}),
-		NewTask("someOtherTask", nil, func(ctx context.Context, res *sync.Map) (interface{}, error) {
+		NewTask("someOtherTask", nil, func(ctx context.Context, res Results) (interface{}, error) {
 			taskTwoRan = true
 			return nil, retErr
 		}),
-	})
+	)
 
 	if err != nil {
 		t.Fatal("failed to initialize the graph")
