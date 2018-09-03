@@ -9,7 +9,8 @@ var empty struct{}
 // A TaskFn is an individually executable unit of work. It is expected that
 // when the context is closed, such as via a timetout or cancellation, that
 // a TaskFun will cease execution and return immediately.
-type TaskFn = func(ctx context.Context) error
+// Results, which can be nil, contains a map of task name to return result.
+type TaskFn = func(ctx context.Context, results Results) (interface{}, error)
 
 // A Task is a unit of work along with a name and set of dependencies.
 type Task struct {
@@ -50,7 +51,7 @@ type Graph struct {
 // well-formed, such as when a dependency is not satisfied or a cycle is
 // detected.
 func NewGraph(
-	tasks []Task,
+	tasks ...Task,
 ) (Graph, error) {
 	taskMap := make(map[string]Task, len(tasks))
 	taskToDependants := make(map[string]map[string]struct{}, len(tasks))
