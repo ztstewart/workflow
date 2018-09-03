@@ -19,11 +19,11 @@ import (
 func doSomething(ctx context.Context) {
 
     taskGraph, err := workflow.NewGraph([]workflow.Task{
-        NewTask("taskName", func(ctx context.Context) error {
+        NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context) error {
             // Do some useful work here...
             return nil
-        }, "someOtherTask"),
-        NewTask("someOtherTask", func(ctx context.Context) error {
+        }),
+        NewTask("someOtherTask", nil, func(ctx context.Context) error {
             // Do some useful work here...
             return nil
         })

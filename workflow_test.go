@@ -25,12 +25,12 @@ func TestWorkflowSimpleCase(t *testing.T) {
 	taskOneRan := false
 	taskTwoRan := false
 	taskGraph, err := NewGraph([]Task{
-		NewTask("taskName", func(ctx context.Context) error {
+		NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context) error {
 			// Do some useful work here...
 			taskOneRan = true
 			return nil
-		}, "someOtherTask"),
-		NewTask("someOtherTask", func(ctx context.Context) error {
+		}),
+		NewTask("someOtherTask", nil, func(ctx context.Context) error {
 			// Do some useful work here...
 			taskTwoRan = true
 			return nil
@@ -63,12 +63,12 @@ func TestWorkflowReturnsError(t *testing.T) {
 	taskOneRan := false
 	taskTwoRan := false
 	taskGraph, err := NewGraph([]Task{
-		NewTask("taskName", func(ctx context.Context) error {
+		NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context) error {
 			// Do some useful work here...
 			taskOneRan = true
 			return nil
-		}, "someOtherTask"),
-		NewTask("someOtherTask", func(ctx context.Context) error {
+		}),
+		NewTask("someOtherTask", nil, func(ctx context.Context) error {
 			// Do some useful work here...
 			taskTwoRan = true
 			return retErr

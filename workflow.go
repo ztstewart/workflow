@@ -20,7 +20,7 @@ type Task struct {
 }
 
 // NewTask constructs a Task with a name and set of dependencies.
-func NewTask(name string, fn TaskFn, deps ...string) Task {
+func NewTask(name string, deps []string, fn TaskFn) Task {
 	depSet := make(map[string]struct{}, len(deps))
 
 	for _, dep := range deps {
