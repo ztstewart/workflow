@@ -20,11 +20,11 @@
 //
 //	 func doSomething(ctx context.Context) {
 //	 	taskGraph, err := workflow.NewGraph(
-//	 		NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context, res Results) (interface{}, error) {
+//	 		NewTask("taskOne", []string{"taskTwo"}, func(ctx context.Context, res Results) (interface{}, error) {
 //	 			// Do some useful work here...
 //	 			return nil, nil
 //	 		}),
-//	 		NewTask("someOtherTask", nil, func(ctx context.Context, res Results) (interface{}, error) {
+//	 		NewTask("taskTwo", nil, func(ctx context.Context, res Results) (interface{}, error) {
 //	 			// Do some useful work here...
 //	 			return nil, nil
 //	 		})
@@ -40,11 +40,11 @@
 //	 	}
 //	 }
 //
-// In this example, `taskName` will run before `someOtherTask` does, assuming
-// that `taskName` does not return an error. `taskName` will also have the
-// result of `someOtherTask` included in the `Results` parameter.
-// If "someOtherTask" returns an error, `taskGraph.Run()` will return an error and
-// `taskName` will not execute.
+// In this example, `taskOne` will run before `taskTwo` does, assuming
+// that `taskOne` does not return an error. `taskOne` will also have the
+// result of `taskTwo` included in the `Results` parameter.
+// If "taskTwo" returns an error, `taskGraph.Run()` will return an error and
+// `taskOne` will not execute.
 //
 // Currently, 2^32 - 1 tasks are supported per workflow.
 package workflow

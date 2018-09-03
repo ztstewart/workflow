@@ -9,7 +9,15 @@ var empty struct{}
 // A TaskFn is an individually executable unit of work. It is expected that
 // when the context is closed, such as via a timetout or cancellation, that
 // a TaskFun will cease execution and return immediately.
-// Results, which can be nil, contains a map of task name to return result.
+//
+// Results allows reading the return results from other tasks.
+//
+// It is only guaranteed that results for tasks on which this task depends on
+// directly or indirectly will be retrievable. That is, if Task A depends on
+// Task B and task B depends on Task C, Task A is guaranteed to be able to
+// read the results of task B and C. As the order of execution is not
+// guaranteed, a hypothetical Task D that has no dependencies might not be
+// readable by Task A.
 type TaskFn = func(ctx context.Context, results Results) (interface{}, error)
 
 // A Task is a unit of work along with a name and set of dependencies.
