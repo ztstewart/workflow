@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"sync"
 )
 
 var empty struct{}
@@ -9,7 +10,8 @@ var empty struct{}
 // A TaskFn is an individually executable unit of work. It is expected that
 // when the context is closed, such as via a timetout or cancellation, that
 // a TaskFun will cease execution and return immediately.
-type TaskFn = func(ctx context.Context) error
+// Results, which can be nil, contains a map of task name to return result.
+type TaskFn = func(ctx context.Context, results *sync.Map) (interface{}, error)
 
 // A Task is a unit of work along with a name and set of dependencies.
 type Task struct {

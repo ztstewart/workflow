@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 )
 
@@ -21,19 +22,37 @@ func TestWorkflowNoJobs(t *testing.T) {
 }
 
 func TestWorkflowSimpleCase(t *testing.T) {
-
 	taskOneRan := false
 	taskTwoRan := false
+	taskThreeRan := false
+	taskOneRetVal := "someReturnValue"
 	taskGraph, err := NewGraph([]Task{
-		NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context) error {
-			// Do some useful work here...
+		NewTask("taskOne", []string{"taskTwo"}, func(ctx context.Context, res *sync.Map) (interface{}, error) {
 			taskOneRan = true
-			return nil
+			return taskOneRetVal, nil
 		}),
-		NewTask("someOtherTask", nil, func(ctx context.Context) error {
-			// Do some useful work here...
+		NewTask("taskTwo", nil, func(ctx context.Context, res *sync.Map) (interface{}, error) {
 			taskTwoRan = true
-			return nil
+			return nil, nil
+		}),
+		NewTask("taskThree", []string{"taskOne"}, func(ctx context.Context, res *sync.Map) (interface{}, error) {
+			taskThreeRan = true
+
+			taskOneRes, ok := res.Load("taskOne")
+			if !ok {
+				t.Fatal("failed to stored value in result map")
+			}
+
+			resAsString, ok := taskOneRes.(string)
+			if !ok {
+				t.Fatal("failed to cast result to a string")
+			}
+
+			if resAsString != taskOneRetVal {
+				t.Fatal("incorrect value returned")
+			}
+
+			return nil, nil
 		}),
 	})
 
@@ -42,7 +61,6 @@ func TestWorkflowSimpleCase(t *testing.T) {
 	}
 
 	err = taskGraph.Run(context.Background())
-
 	if err != nil {
 		t.Fatal("failed to run the graph")
 	}
@@ -55,23 +73,23 @@ func TestWorkflowSimpleCase(t *testing.T) {
 		t.Fatal("failed to run taskTwo")
 	}
 
+	if !taskThreeRan {
+		t.Fatal("failed to run taskThree")
+	}
 }
 
 func TestWorkflowReturnsError(t *testing.T) {
-
 	retErr := errors.New("bad error")
 	taskOneRan := false
 	taskTwoRan := false
 	taskGraph, err := NewGraph([]Task{
-		NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context) error {
-			// Do some useful work here...
+		NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context, res *sync.Map) (interface{}, error) {
 			taskOneRan = true
-			return nil
+			return nil, nil
 		}),
-		NewTask("someOtherTask", nil, func(ctx context.Context) error {
-			// Do some useful work here...
+		NewTask("someOtherTask", nil, func(ctx context.Context, res *sync.Map) (interface{}, error) {
 			taskTwoRan = true
-			return retErr
+			return nil, retErr
 		}),
 	})
 
