@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"context"
-	"errors"
 )
 
 var empty struct{}
@@ -120,7 +119,7 @@ func (g Graph) isWellFormed() error {
 	// once somehow, we either are missing a dependency or we have a cycle.
 	// Either way, we can't execute the graph.
 	if visitedJobs != len(g.tasks) {
-		return errors.New("dependency graph is unsolvable; check for cycles or missing dependencies")
+		return InvalidGraphError{}
 	}
 
 	return nil
