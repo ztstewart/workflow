@@ -105,7 +105,7 @@ func (g Graph) isWellFormed() error {
 		name := tasksWithNoDeps[i]
 		visitedJobs++
 
-		for dep, _ := range g.taskToDependants[name] {
+		for dep := range g.taskToDependants[name] {
 			taskToNumDeps[dep]--
 
 			// If a job has no dependencies unfulfilled, we can visit it.
