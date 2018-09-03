@@ -19,19 +19,18 @@
 //	 )
 //
 //	 func doSomething(ctx context.Context) {
-//
-//	 	taskGraph, err := workflow.NewGraph([]workflow.Task{
-//	 		NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context) error {
+//	 	taskGraph, err := workflow.NewGraph(
+//	 		NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context, res Results) (interface{}, error) {
 //	 			// Do some useful work here...
-//	 			return nil
+//	 			return nil, nil
 //	 		}),
-//	 		NewTask("someOtherTask", nil, func(ctx context.Context) error {
+//	 		NewTask("someOtherTask", nil, func(ctx context.Context, res Results) (interface{}, error) {
 //	 			// Do some useful work here...
-//	 			return nil
+//	 			return nil, nil
 //	 		})
-//	 	})
+//	 	)
 //
-//	 	// Check for an error in case we forgot to add "someOtherTask" as a dependency to "taskName"
+//	 	// Check for an error constructing the graph
 //	 	if err != nil {
 //	 		// Handle the error ....
 //	 	}
@@ -42,9 +41,10 @@
 //	 }
 //
 // In this example, `taskName` will run before `someOtherTask` does, assuming
-// that `taskName` does not return an error.
-// If "taskName" returns an error, `taskGraph.Run()` will return an error and
-// `someOtherTask` will not execute.
+// that `taskName` does not return an error. `taskName` will also have the
+// result of `someOtherTask` included in the `Results` parameter.
+// If "someOtherTask" returns an error, `taskGraph.Run()` will return an error and
+// `taskName` will not execute.
 //
 // Currently, 2^32 - 1 tasks are supported per workflow.
 package workflow

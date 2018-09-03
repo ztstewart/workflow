@@ -18,18 +18,18 @@ import (
 
 func doSomething(ctx context.Context) {
 
-    taskGraph, err := workflow.NewGraph([]workflow.Task{
-        NewTask("taskName", []string{"someOtherTask"}, func(ctx context.Context) error {
+    taskGraph, err := workflow.NewGraph(
+        NewTask("taskOne", []string{"taskTwo"}, func(ctx context.Context, res Results) (interface{}, error) {
             // Do some useful work here...
-            return nil
+            return nil, nil
         }),
-        NewTask("someOtherTask", nil, func(ctx context.Context) error {
+        NewTask("taskTwo", nil, func(ctx context.Context, res Results) (interface{}, error) {
             // Do some useful work here...
-            return nil
+            return nil, nil
         })
-    })
+    )
 
-    // Check for an error in case we forgot to add "someOtherTask" as a dependency to "taskName"
+    // Check for an error -- maybe we forgot to add "taskTwo"
     if err != nil {
         // Handle the error ....
     }
