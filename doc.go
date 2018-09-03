@@ -31,7 +31,8 @@
 //	 		})
 //	 	})
 //
-//	 	// Check for an error in case we forgot to add "someOtherTask" as a dependency to "taskName"
+//	 	// Check for an error in case we forgot to add "someOtherTask" as a
+//      // dependency to "taskName"
 //	 	if err != nil {
 //	 		// Handle the error ....
 //	 	}
