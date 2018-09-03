@@ -84,7 +84,7 @@ func (ec *executionCtx) runTask(t Task) {
 		return
 	}
 
-	for dep, _ := range ec.g.taskToDependants[t.name] {
+	for dep := range ec.g.taskToDependants[t.name] {
 		if ec.taskToNumdeps[dep].Add(-1) == int32(0) {
 			ec.enqueueTask(ec.g.tasks[dep])
 		}

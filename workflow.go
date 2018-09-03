@@ -56,7 +56,7 @@ func NewGraph(
 	for _, task := range tasks {
 		name := task.name
 		taskMap[name] = task
-		for depName, _ := range task.deps {
+		for depName := range task.deps {
 			depSet, ok := taskToDependants[depName]
 
 			if !ok {
