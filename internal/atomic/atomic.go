@@ -6,8 +6,8 @@ import (
 
 // Int32 is a wrapper around an int32, providing atomic operations.
 // All operations provided are atomic.
-type Int32 struct{ 
-	val int32 
+type Int32 struct {
+	val int32
 }
 
 // NewInt32 instantiates an Int32.
